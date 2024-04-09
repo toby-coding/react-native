@@ -10,18 +10,17 @@
 
 import type {RootTag} from 'react-native/Libraries/ReactNative/RootTag';
 
+import styles from './TurboModuleExampleCommon';
 import * as React from 'react';
 import {
   FlatList,
   NativeModules,
+  Platform,
   RootTagContext,
   Text,
   TouchableOpacity,
   View,
-  Platform,
 } from 'react-native';
-
-import styles from './TurboModuleExampleCommon';
 
 type State = {|
   testResults: {
@@ -135,7 +134,7 @@ class SampleLegacyModuleExample extends React.Component<{||}, State> {
           getObjectInteger: () => getSampleLegacyModule()?.getObjectInteger(99),
           getObjectFloat: () => getSampleLegacyModule()?.getObjectFloat(99.95),
           getString: () => getSampleLegacyModule()?.getString('Hello'),
-          getRootTag: () => getSampleLegacyModule()?.getRootTag(this.context),
+          getRootTag: () => getSampleLegacyModule()?.getRootTag(11),
           getObject: () =>
             getSampleLegacyModule()?.getObject({a: 1, b: 'foo', c: null}),
           getUnsafeObject: () =>

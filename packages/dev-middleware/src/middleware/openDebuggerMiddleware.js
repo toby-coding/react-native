@@ -9,16 +9,17 @@
  * @oncall react_native
  */
 
-import type {NextHandleFunction} from 'connect';
-import type {IncomingMessage, ServerResponse} from 'http';
 import type {InspectorProxyQueries} from '../inspector-proxy/InspectorProxy';
 import type {BrowserLauncher, LaunchedBrowser} from '../types/BrowserLauncher';
 import type {EventReporter} from '../types/EventReporter';
 import type {Experiments} from '../types/Experiments';
 import type {Logger} from '../types/Logger';
+import type {NextHandleFunction} from 'connect';
+import type {IncomingMessage, ServerResponse} from 'http';
 
-import url from 'url';
 import getDevToolsFrontendUrl from '../utils/getDevToolsFrontendUrl';
+import crypto from 'crypto';
+import url from 'url';
 
 const debuggerInstances = new Map<string, ?LaunchedBrowser>();
 
@@ -57,24 +58,33 @@ export default function openDebuggerMiddleware({
       (experiments.enableOpenDebuggerRedirect && req.method === 'GET')
     ) {
       const {query} = url.parse(req.url, true);
-      const {appId} = query;
+      const {appId, device}: {appId?: string, device?: string, ...} = query;
 
       const targets = inspectorProxy.getPageDescriptions().filter(
         // Only use targets with better reloading support
         app =>
-          app.title === 'React Native Experimental (Improved Chrome Reloads)',
+          app.title === 'React Native Experimental (Improved Chrome Reloads)' ||
+          app.reactNative.capabilities?.nativePageReloads === true,
       );
+
       let target;
 
       const launchType: 'launch' | 'redirect' =
         req.method === 'POST' ? 'launch' : 'redirect';
 
-      if (typeof appId === 'string') {
+      if (typeof appId === 'string' || typeof device === 'string') {
         logger?.info(
           (launchType === 'launch' ? 'Launching' : 'Redirecting to') +
             ' JS debugger (experimental)...',
         );
-        target = targets.find(_target => _target.description === appId);
+        if (typeof device === 'string') {
+          target = targets.find(
+            _target => _target.reactNative.logicalDeviceId === device,
+          );
+        }
+        if (!target && typeof appId === 'string') {
+          target = targets.find(_target => _target.description === appId);
+        }
       } else {
         logger?.info(
           (launchType === 'launch' ? 'Launching' : 'Redirecting to') +
@@ -98,16 +108,26 @@ export default function openDebuggerMiddleware({
         return;
       }
 
+      const launchId = crypto.randomUUID();
+      const useFuseboxEntryPoint =
+        target.reactNative.capabilities?.prefersFuseboxFrontend;
+
       try {
         switch (launchType) {
           case 'launch':
-            await debuggerInstances.get(appId)?.kill();
+            const frontendInstanceId =
+              device != null
+                ? 'device:' + device
+                : 'app:' + (appId ?? '<null>');
+            await debuggerInstances.get(frontendInstanceId)?.kill();
             debuggerInstances.set(
-              appId,
+              frontendInstanceId,
               await browserLauncher.launchDebuggerAppWindow(
                 getDevToolsFrontendUrl(
+                  experiments,
                   target.webSocketDebuggerUrl,
                   serverBaseUrl,
+                  {launchId, useFuseboxEntryPoint},
                 ),
               ),
             );
@@ -116,9 +136,10 @@ export default function openDebuggerMiddleware({
           case 'redirect':
             res.writeHead(302, {
               Location: getDevToolsFrontendUrl(
+                experiments,
                 target.webSocketDebuggerUrl,
-                // Use a relative URL.
-                '',
+                serverBaseUrl,
+                {relative: true, launchId, useFuseboxEntryPoint},
               ),
             });
             res.end();
@@ -130,7 +151,8 @@ export default function openDebuggerMiddleware({
           type: 'launch_debugger_frontend',
           launchType,
           status: 'success',
-          appId,
+          appId: appId ?? null,
+          deviceId: device ?? null,
         });
         return;
       } catch (e) {

@@ -24,6 +24,7 @@
 #include <glog/logging.h>
 #include <jsi/JSIDynamic.h>
 #include <jsi/jsi.h>
+#include <react/featureflags/ReactNativeFeatureFlags.h>
 #include <react/renderer/animations/LayoutAnimationDriver.h>
 #include <react/renderer/componentregistry/ComponentDescriptorFactory.h>
 #include <react/renderer/core/EventBeat.h>
@@ -385,15 +386,6 @@ void Binding::installFabricUIManager(
     }
   }
 
-  // TODO: T31905686 Create synchronous Event Beat
-  EventBeat::Factory synchronousBeatFactory =
-      [eventBeatManager, runtimeExecutor, globalJavaUiManager](
-          const EventBeat::SharedOwnerBox& ownerBox)
-      -> std::unique_ptr<EventBeat> {
-    return std::make_unique<AsyncEventBeat>(
-        ownerBox, eventBeatManager, runtimeExecutor, globalJavaUiManager);
-  };
-
   EventBeat::Factory asynchronousBeatFactory =
       [eventBeatManager, runtimeExecutor, globalJavaUiManager](
           const EventBeat::SharedOwnerBox& ownerBox)
@@ -414,13 +406,6 @@ void Binding::installFabricUIManager(
 
   CoreFeatures::enablePropIteratorSetter =
       getFeatureFlagValue("enableCppPropsIteratorSetter");
-  CoreFeatures::useNativeState = getFeatureFlagValue("useNativeState");
-  CoreFeatures::doNotSwapLeftAndRightOnAndroidInLTR =
-      getFeatureFlagValue("doNotSwapLeftAndRightOnAndroidInLTR");
-  CoreFeatures::enableCleanParagraphYogaNode =
-      getFeatureFlagValue("enableCleanParagraphYogaNode");
-  CoreFeatures::enableDefaultAsyncBatchedPriority =
-      getFeatureFlagValue("enableDefaultAsyncBatchedPriority");
   CoreFeatures::enableClonelessStateProgression =
       getFeatureFlagValue("enableClonelessStateProgression");
   CoreFeatures::excludeYogaFromRawProps =
@@ -439,10 +424,9 @@ void Binding::installFabricUIManager(
   toolbox.bridgelessBindingsExecutor = std::nullopt;
   toolbox.runtimeExecutor = runtimeExecutor;
 
-  toolbox.synchronousEventBeatFactory = synchronousBeatFactory;
   toolbox.asynchronousEventBeatFactory = asynchronousBeatFactory;
 
-  if (getFeatureFlagValue("enableBackgroundExecutor")) {
+  if (ReactNativeFeatureFlags::enableBackgroundExecutor()) {
     backgroundExecutor_ = JBackgroundExecutor::create("fabric_bg");
     toolbox.backgroundExecutor = backgroundExecutor_;
   }

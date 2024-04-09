@@ -30,7 +30,9 @@ public class ReactFragment extends Fragment implements PermissionAwareActivity {
   protected static final String ARG_LAUNCH_OPTIONS = "arg_launch_options";
   protected static final String ARG_FABRIC_ENABLED = "arg_fabric_enabled";
 
-  private ReactDelegate mReactDelegate;
+  protected ReactDelegate mReactDelegate;
+
+  protected boolean shouldCallDelegateLifecycleEvents = true;
 
   @Nullable private PermissionListener mPermissionListener;
 
@@ -99,20 +101,27 @@ public class ReactFragment extends Fragment implements PermissionAwareActivity {
   @Override
   public void onResume() {
     super.onResume();
-    mReactDelegate.onHostResume();
+    if (shouldCallDelegateLifecycleEvents) {
+      mReactDelegate.onHostResume();
+    }
   }
 
   @Override
   public void onPause() {
     super.onPause();
-    mReactDelegate.onHostPause();
+    if (shouldCallDelegateLifecycleEvents) {
+      mReactDelegate.onHostPause();
+    }
   }
 
   @Override
   public void onDestroy() {
     super.onDestroy();
-    mReactDelegate.onHostDestroy();
+    if (shouldCallDelegateLifecycleEvents) {
+      mReactDelegate.onHostDestroy();
+    }
   }
+
   // endregion
 
   @Override
@@ -181,7 +190,7 @@ public class ReactFragment extends Fragment implements PermissionAwareActivity {
     public Builder() {
       mComponentName = null;
       mLaunchOptions = null;
-      mFabricEnabled = null;
+      mFabricEnabled = false;
     }
 
     /**

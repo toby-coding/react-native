@@ -21,7 +21,7 @@ import java.io.File;
 /**
  * Interface for accessing and interacting with development features. In dev mode, use the
  * implementation {@link BridgeDevSupportManager}. In production mode, use the dummy implementation
- * {@link DisabledDevSupportManager}.
+ * {@link ReleaseDevSupportManager}.
  */
 public interface DevSupportManager extends JSExceptionHandler {
 
@@ -128,4 +128,7 @@ public interface DevSupportManager extends JSExceptionHandler {
    */
   @Nullable
   SurfaceDelegate createSurfaceDelegate(String moduleName);
+
+  /** Attempt to open the JS debugger on the host machine. */
+  void openDebugger();
 }

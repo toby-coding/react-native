@@ -16,6 +16,7 @@ void* TextLayoutManager::getNativeTextLayoutManager() const {
 TextMeasurement TextLayoutManager::measure(
     AttributedStringBox attributedStringBox,
     ParagraphAttributes paragraphAttributes,
+    const TextLayoutContext& /*layoutContext*/,
     LayoutConstraints layoutConstraints,
     std::shared_ptr<void>) const {
   TextMeasurement::Attachments attachments;
@@ -26,6 +27,13 @@ TextMeasurement TextLayoutManager::measure(
     }
   }
   return TextMeasurement{{0, 0}, attachments};
+}
+
+TextMeasurement TextLayoutManager::measureCachedSpannableById(
+    int64_t /*cacheId*/,
+    const ParagraphAttributes& /*paragraphAttributes*/,
+    LayoutConstraints /*layoutConstraints*/) const {
+  return {};
 }
 
 LinesMeasurements TextLayoutManager::measureLines(

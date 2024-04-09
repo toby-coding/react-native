@@ -61,15 +61,13 @@ class AsyncCallback {
 
   void callWithArgs(std::optional<SchedulerPriority> priority, Args... args)
       const noexcept {
-    auto wrapper = callback_->wrapper_.lock();
-    if (wrapper) {
-      auto& jsInvoker = wrapper->jsInvoker();
+    if (auto wrapper = callback_->wrapper_.lock()) {
       auto fn = [callback = callback_,
                  argsPtr = std::make_shared<std::tuple<Args...>>(
-                     std::make_tuple(std::forward<Args>(args)...))] {
-        callback->apply(std::move(*argsPtr));
-      };
+                     std::make_tuple(std::forward<Args>(args)...))](
+                    jsi::Runtime&) { callback->apply(std::move(*argsPtr)); };
 
+      auto& jsInvoker = wrapper->jsInvoker();
       if (priority) {
         jsInvoker.invokeAsync(*priority, std::move(fn));
       } else {
@@ -82,14 +80,18 @@ class AsyncCallback {
       std::optional<SchedulerPriority> priority,
       std::function<void(jsi::Runtime&, jsi::Function&)>&& callImpl)
       const noexcept {
-    auto wrapper = callback_->wrapper_.lock();
-    if (wrapper) {
-      auto& jsInvoker = wrapper->jsInvoker();
-      auto fn = [wrapper = std::move(wrapper),
-                 callImpl = std::move(callImpl)]() {
-        callImpl(wrapper->runtime(), wrapper->callback());
+    if (auto wrapper = callback_->wrapper_.lock()) {
+      // Capture callback_ and not wrapper_. If callback_ is deallocated or the
+      // JSVM is shutdown before the async task is scheduled, the underlying
+      // function will have been deallocated.
+      auto fn = [callback = callback_,
+                 callImpl = std::move(callImpl)](jsi::Runtime& rt) {
+        if (auto wrapper2 = callback->wrapper_.lock()) {
+          callImpl(rt, wrapper2->callback());
+        }
       };
 
+      auto& jsInvoker = wrapper->jsInvoker();
       if (priority) {
         jsInvoker.invokeAsync(*priority, std::move(fn));
       } else {
@@ -99,6 +101,9 @@ class AsyncCallback {
   }
 };
 
+// You must ensure that when invoking this you're located on the JS thread, or
+// have exclusive control of the JS VM context. If you cannot ensure this, use
+// AsyncCallback instead.
 template <typename R, typename... Args>
 class SyncCallback<R(Args...)> {
  public:
@@ -111,9 +116,19 @@ class SyncCallback<R(Args...)> {
             rt,
             std::move(jsInvoker))) {}
 
-  // Disallow moving to prevent function from get called on another thread.
-  SyncCallback(SyncCallback&&) = delete;
-  SyncCallback& operator=(SyncCallback&&) = delete;
+  // Disallow copying, as we can no longer safely destroy the callback
+  // from the destructor if there's multiple copies
+  SyncCallback(const SyncCallback&) = delete;
+  SyncCallback& operator=(const SyncCallback&) = delete;
+
+  // Allow move
+  SyncCallback(SyncCallback&& other) noexcept
+      : wrapper_(std::move(other.wrapper_)) {}
+
+  SyncCallback& operator=(SyncCallback&& other) noexcept {
+    wrapper_ = std::move(other.wrapper_);
+    return *this;
+  }
 
   ~SyncCallback() {
     if (auto wrapper = wrapper_.lock()) {

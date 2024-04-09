@@ -36,7 +36,7 @@ export type ReportableEvent =
       type: 'launch_debugger_frontend',
       launchType: 'launch' | 'redirect',
       ...
-        | SuccessResult<{appId: string}>
+        | SuccessResult<{appId: string | null, deviceId: string | null}>
         | ErrorResult<mixed>
         | CodedErrorResult<'NO_APPS_FOUND'>,
     }
@@ -68,6 +68,15 @@ export type ReportableEvent =
             | 'UNMATCHED_REQUEST_ID'
             | 'PROTOCOL_ERROR',
           >,
+    }
+  | {
+      type: 'proxy_error',
+      status: 'error',
+      messageOrigin: 'debugger' | 'device',
+      message: string,
+      error: string,
+      errorStack: string,
+      ...DebuggerSessionIDs,
     };
 
 /**

@@ -28,14 +28,11 @@ class State;
  * about a `ShadowNodeFamily`. Pelase define specific purpose containers in
  * those cases.
  *
- * Note: All of the fields are `const &` references (essentially just raw
- * pointers) which means that the Fragment does not copy/store them nor
- * retain ownership of them.
  */
 struct ShadowNodeFamilyFragment {
   const Tag tag;
   const SurfaceId surfaceId;
-  const InstanceHandle::Shared& instanceHandle;
+  const std::shared_ptr<const InstanceHandle> instanceHandle;
 };
 
 /*
@@ -53,6 +50,7 @@ class ShadowNodeFamily final {
 
   ShadowNodeFamily(
       const ShadowNodeFamilyFragment& fragment,
+      SharedEventEmitter eventEmitter,
       EventDispatcher::Weak eventDispatcher,
       const ComponentDescriptor& componentDescriptor);
 
@@ -98,8 +96,7 @@ class ShadowNodeFamily final {
   /*
    * Dispatches a state update with given priority.
    */
-  void dispatchRawState(StateUpdate&& stateUpdate, EventPriority priority)
-      const;
+  void dispatchRawState(StateUpdate&& stateUpdate) const;
 
   /*
    * Holds currently applied native props. `nullptr` if setNativeProps API is

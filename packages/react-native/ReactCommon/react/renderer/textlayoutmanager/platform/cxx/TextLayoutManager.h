@@ -13,6 +13,7 @@
 #include <react/renderer/attributedstring/AttributedStringBox.h>
 #include <react/renderer/attributedstring/ParagraphAttributes.h>
 #include <react/renderer/core/LayoutConstraints.h>
+#include <react/renderer/textlayoutmanager/TextLayoutContext.h>
 #include <react/renderer/textlayoutmanager/TextMeasureCache.h>
 #include <react/utils/ContextContainer.h>
 
@@ -37,8 +38,18 @@ class TextLayoutManager {
   virtual TextMeasurement measure(
       AttributedStringBox attributedStringBox,
       ParagraphAttributes paragraphAttributes,
+      const TextLayoutContext& layoutContext,
       LayoutConstraints layoutConstraints,
       std::shared_ptr<void>) const;
+
+  /**
+   * Measures an AttributedString on the platform, as identified by some
+   * opaque cache ID.
+   */
+  virtual TextMeasurement measureCachedSpannableById(
+      int64_t cacheId,
+      const ParagraphAttributes& paragraphAttributes,
+      LayoutConstraints layoutConstraints) const;
 
   /*
    * Measures lines of `attributedString` using native text rendering
